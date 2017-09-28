@@ -9,6 +9,8 @@
 
 using namespace std;
 
+#define READ_FILE true
+
 void set_io() {
     assert(freopen("input.txt", "r", stdin) != nullptr);
     assert(freopen("output.txt", "w", stdout) != nullptr);
@@ -143,6 +145,11 @@ void solve() {
 }
 
 int main() {
-    // set_io();
+#if READ_FILE
+    set_io();
+#endif
     solve();
+#if READ_FILE
+    flush();
+#endif
 }

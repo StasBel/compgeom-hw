@@ -96,20 +96,7 @@ inline vector<point> graham_ch(vector<point> P) {
 
 void solve() {
     int n = readInt();
-    vector<point> P;
-    P.reserve((size_t) n);
-    forn(_, n) {
-        P.push_back({readInt(), readInt()});
-    }
-    auto CH = graham_ch(P);
-    writeInt(CH.size());
-    writeEndl();
-    forn(i, CH.size()) {
-        writeInt(CH[i].x);
-        writeChar(' ');
-        writeInt(CH[i].y);
-        writeEndl();
-    }
+    writeInt(n);
 }
 
 int main() {

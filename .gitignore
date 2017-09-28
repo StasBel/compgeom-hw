@@ -2,5 +2,4 @@
 cmake-build-debug/
 *.dSYM
 main
-input.txt
 output.txt
