@@ -9,7 +9,7 @@
 
 using namespace std;
 
-#define READ_FILE true
+#define READ_FILE false
 
 void set_io() {
     assert(freopen("input.txt", "r", stdin) != nullptr);
@@ -46,7 +46,7 @@ struct point {
     }
 
     inline double dist() const {
-        return sqrt(pow(x, 2) + pow(y, 2));
+        return sqrt(pow((double) x, 2) + pow((double) y, 2));
     }
 
     inline double atan() const {
@@ -94,9 +94,36 @@ inline vector<point> graham_ch(vector<point> P) {
     return P;
 }
 
+inline double turn_len(const point &p, const point &q, const point &r, double l) {
+    auto a = q - r, b = q - p;
+    auto dp = (double) (a * b);
+    dp /= a.dist();
+    dp /= b.dist();
+    auto angle = M_PI - acos(dp);
+    return angle * l;
+}
+
 void solve() {
     int n = readInt();
-    writeInt(n);
+    double l = readDouble();
+    vector<point> P;
+    P.reserve((size_t) n);
+    forn(_, n) {
+        P.push_back({readInt(), readInt()});
+    }
+    auto Q = graham_ch(P);
+    auto m = Q.size();
+    double len = 0;
+    forn(i, m - 2) {
+        len += turn_len(Q[i], Q[i + 1], Q[i + 2], l);
+    }
+    forn(i, m - 1) {
+        len += (Q[i + 1] - Q[i]).dist();
+    }
+    len += turn_len(Q[m - 2], Q[m - 1], Q[0], l);
+    len += turn_len(Q[m - 1], Q[0], Q[1], l);
+    len += (Q[0] - Q[m - 1]).dist();
+    writeDouble(len, 9);
 }
 
 int main() {
