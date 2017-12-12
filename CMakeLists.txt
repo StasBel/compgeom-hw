@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.8)
 project(compgeom_hw)
 
-set(CURRENT_TASK d)
+set(CURRENT_TASK f3)
 
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ../${CURRENT_TASK}/)
