@@ -72,6 +72,12 @@ struct Point {
         dp /= p.dist();
         return acos(dp);
     }
+
+    double fatan() const {
+        auto a = atan2((double) y, (double) (x == 0 && y == 0) ? 1 : x);
+        if (a < 0) a += 2 * M_PI;
+        return a;
+    }
 };
 
 ostream &operator<<(ostream &stream, const Point &p) {
@@ -168,7 +174,7 @@ public:
     }
 
     vector<Polygon> split_y(Polygon &P) {
-        bound_polygon(P);
+        reorder_ccw(P);
 
         unordered_map<int, Point> U; // U for universe
         for (auto &p: P) U[p.id] = p;
@@ -183,16 +189,6 @@ public:
         struct EdgeHasher {
             size_t operator()(const Edge &e) const {
                 return hash<int>()(e.fromId) ^ hash<int>()(e.toId);
-            }
-        };
-        struct EdgeCompare {
-            unordered_map<int, Point> &U;
-
-            explicit EdgeCompare(unordered_map<int, Point> &U) : U(U) {}
-
-            bool operator()(const Edge &el, const Edge &er) const {
-                auto l = (U[el.toId].x + U[el.fromId].x) / 2., r = (U[er.toId].x + U[er.fromId].x) / 2.;
-                return l < r;
             }
         };
 
@@ -231,7 +227,6 @@ public:
         // helper
         unordered_map<Edge, Point, EdgeHasher> helper;
 
-
         while (!Q.empty()) {
             auto vi = Q.top();
             Q.pop();
@@ -241,14 +236,6 @@ public:
             auto vi1 = P[(pos[vi] + 1) % P.size()];  // v_{i + 1}
             auto ei = Edge(vi.id, vi1.id);  // e_i
             auto ei_1 = Edge(vi_1.id, vi.id);  // e_{i - 1}
-
-//            cout << "vi_1 = " << vi_1 << endl;
-//            cout << "vi = " << vi << endl;
-//            cout << "vi1 = " << vi1 << endl;
-//            cout << "type= " << type << endl;
-//            cout << "ei_1= " << ei_1 << endl;
-//            cout << "ei= " << ei << endl;
-//            cout << "T size before= " << T.size() << endl;
 
             if (type == 0) { // start
                 T.insert(ei);
@@ -282,7 +269,6 @@ public:
                 }
             } else { // regular
                 bool cond = vi1.y < vi_1.y || (vi1.y == vi_1.y && vi1.x < vi_1.x);  // TODO: shitcases?
-//                cout << "cond= " << cond << endl;
                 if (cond) {
                     if (helper.find(ei_1) != helper.end() && vertex_type(helper[ei_1]) == 3) {  // merge
                         D.emplace_back(vi.id, helper[ei_1].id);
@@ -301,38 +287,86 @@ public:
                     }
                 }
             }
-
-//            cout << "T size after= " << T.size() << endl;
-//            cout << "------------------------" << endl;
         }
 
-        // res
-        vector<Polygon> res;
-        int lastl, lastr;
-        bool has_last_cut = false;
+        // construct graph
+        int cur_base;
+        auto cmp = [&](int ll, int rr) {
+            auto &p = U[cur_base], &q = U[ll], &r = U[rr];
+            auto la = (q - p).fatan(), ra = (r - p).fatan();
+            return la > ra;
+        };
+        vector<set<int, decltype(cmp)>> G(P.size(), set<int, decltype(cmp)>(cmp));
+        for (int i = 0; i + 1 < int(P.size()); i++) {
+            auto l = P[i].id, r = P[i + 1].id;
+            cur_base = l;
+            G[l].insert(r);
+            cur_base = r;
+            G[r].insert(l);
+        }
+        auto l = P[0].id, r = P[int(P.size()) - 1].id;
+        cur_base = l;
+        G[l].insert(r);
+        cur_base = r;
+        G[r].insert(l);
         for (auto &e : D) {
-            auto l = pos[U[e.fromId]], r = pos[U[e.toId]];
-            if (l > r) swap(l, r);
-            if (has_last_cut) {
-                vector<Point> v;
-                v.insert(v.end(), P.begin() + l, P.begin() + lastl + 1);
-                v.insert(v.end(), P.begin() + lastr, P.begin() + r + 1);
-                res.push_back(v);
-            } else {
-                res.emplace_back(vector<Point>(P.begin() + l, P.begin() + r + 1));
-            }
-            lastl = l;
-            lastr = r;
-            has_last_cut = true;
+            auto l = U[e.fromId].id, r = U[e.toId].id;
+            cur_base = l;
+            G[l].insert(r);
+            cur_base = r;
+            G[r].insert(l);
         }
-        if (has_last_cut) {
-            vector<Point> v;
-            v.insert(v.end(), P.begin(), P.begin() + lastl);
-            v.insert(v.end(), P.begin() + lastr, P.end());
-            v.push_back(P[0]);
-            res.push_back(v);
-        } else {
-            res.push_back(P);
+
+        // run dfs to collect faces
+        vector<Polygon> res;
+        vector<vector<int>> resi;
+        int start = -1;
+        vector<int> cur_pts;
+        function<void(int, int)> dfs = [&](int x, int p) {
+            cur_base = x;
+
+            if (x == start) {
+                resi.push_back(cur_pts);
+                cur_pts.clear();
+                start = x;
+                cur_pts.push_back(x);
+            } else {
+                if (start == -1) start = x;
+                cur_pts.push_back(x);
+            }
+
+            if (!G[x].empty()) {
+                auto it = G[x].upper_bound(p);
+                if (it == G[x].end()) it = G[x].begin();
+                int n = *it;
+                G[x].erase(n);
+                dfs(n, x);
+            }
+
+        };
+        for (auto &p : P) {
+            cur_base = p.id;
+            if (!G[p.id].empty()) {
+                start = -1;
+                cur_pts.clear();
+                dfs(p.id, p.id);
+            }
+        }
+
+        // delete outer face and map id to points
+        bool meet_outer = false;
+        for (auto &pi: resi) {
+            if (!meet_outer && pi.size() == P.size()) {
+                meet_outer = true;
+                continue;
+            }
+            Polygon nP;
+            nP.reserve(pi.size());
+            for (auto i: pi) {
+                nP.push_back(U[i]);
+            }
+            reorder_ccw(nP);
+            res.push_back(nP);
         }
         return res;
     }
@@ -478,6 +512,27 @@ int main() {
     Polygon P2 = {{0, 1, 0},
                   {1, 0, 1},
                   {1, 1, 2}};
+    Polygon P3 = {{0,   0,  0},
+                  {6,   6,  1},
+                  {14,  1,  2},
+                  {2,   21, 3},
+                  {-1,  16, 4},
+                  {-9,  20, 5},
+                  {-3,  12, 6},
+                  {-11, 16, 7},
+                  {-7,  6,  8}};
+    Polygon P4 = {{0, 1, 0},
+                  {0, 2, 1},
+                  {1, 2, 2},
+                  {1, 3, 3},
+                  {2, 3, 4},
+                  {2, 2, 5},
+                  {3, 2, 6},
+                  {3, 1, 7},
+                  {2, 1, 8},
+                  {2, 0, 9},
+                  {1, 0, 10},
+                  {1, 1, 11}};
     auto P = P1;
 
     auto k = Kirkpatrick(P);
