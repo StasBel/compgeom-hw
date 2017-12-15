@@ -192,24 +192,6 @@ public:
             }
         };
 
-        // vertex_type
-        auto vertex_type = [P, &pos](const Point &p) {
-            auto &r = P[(pos[p] + 1) % P.size()], &q = P[(pos[p] - 1 + P.size()) % P.size()];
-            auto a = (q - p).angle(r - p);
-            if (is_right_turn(p, q, r)) a = 2 * M_PI - a;
-            if (r.y < p.y && q.y < p.y && a < M_PI) {
-                return 0; // start
-            } else if (r.y < p.y && q.y < p.y && a > M_PI) {
-                return 1; // split
-            } else if (r.y > p.y && q.y > p.y && a < M_PI) {
-                return 2; // end
-            } else if (r.y > p.y && q.y > p.y && a > M_PI) {
-                return 3; // merge
-            } else {
-                return 4; // regular
-            }
-        };
-
         // T
         auto ecmp = [&U](const Edge &el, const Edge &er) {
             auto l = (U[el.toId].x + U[el.fromId].x) / 2., r = (U[er.toId].x + U[er.fromId].x) / 2.;
@@ -220,6 +202,24 @@ public:
         // Q
         auto pcmp = [](const Point &p, const Point &q) { return p.y < q.y || (p.y == q.y && p.x > q.x); };
         priority_queue<Point, vector<Point>, decltype(pcmp)> Q(pcmp, P);
+
+        // vertex_type
+        auto vertex_type = [&](const Point &p) {
+            auto &r = P[(pos[p] + 1) % P.size()], &q = P[(pos[p] - 1 + P.size()) % P.size()];
+            auto a = (q - p).angle(r - p);
+            if (is_right_turn(p, q, r)) a = 2 * M_PI - a;
+            if (pcmp(q, p) && pcmp(r, p) && a < M_PI) {
+                return 0; // start
+            } else if (pcmp(q, p) && pcmp(r, p) && a > M_PI) {
+                return 1; // split
+            } else if (pcmp(p, q) && pcmp(p, r) && a < M_PI) {
+                return 2; // end
+            } else if (pcmp(p, q) && pcmp(p, r) && a > M_PI) {
+                return 3; // merge
+            } else {
+                return 4; // regular
+            }
+        };
 
         // D
         vector<Edge> D;
