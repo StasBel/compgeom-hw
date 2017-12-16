@@ -1,6 +1,6 @@
 #include <iostream>
 #include <vector>
-#include <cassert>
+#include <assert.h>
 #include <queue>
 #include <cmath>
 #include <unordered_map>
@@ -116,17 +116,12 @@ bool is_left_turn(const Point &a, const Point &b, const Point &c) {
 
 typedef vector<Point> Polygon;
 
+
 void print_polygon(Polygon &points) {
     printf("%d\n", (int) points.size());
     for (auto point : points) {
-        printf("%d %d id=%d\n", point.x, point.y, point.id);
+        printf("%d %d\n", point.x, point.y);
     }
-}
-
-inline Point getPoint(const Polygon &p, int i) {
-    i = i < 0 ? i + (int) p.size() : i;
-    i = i >= (int) p.size() ? i - (int) p.size() : i;
-    return p[i];
 }
 
 struct PointCmp {
@@ -147,34 +142,30 @@ struct PointCmpByY {
     }
 };
 
-inline int sign(long long x) {
-    return x == 0 ? 0 : (x < 0 ? -1 : 1);
-}
-
 class Kirkpatrick {
 private:
     int max_id;
 
 public:
     Kirkpatrick(Polygon &p) {
-        // find max_id
-        max_id = max_element(p.begin(), p.end(), [](const Point &a, const Point &b) {
-            return a.id < b.id;
-        })->id;
-
-        // build triangulation
-        const auto triangulation = triangulate(p);
-        vector<Triangle> triangles = triangulation.first;
-        vector<Edge> edges = triangulation.second;
-
-        // add triangle's faces
-        for (auto &face : bound_polygon(p)) {
-            auto result = triangulate(face);
-            triangles.insert(triangles.end(), result.first.begin(), result.first.end());
-            edges.insert(edges.end(), result.second.begin(), result.second.end());
-        }
-
-        // TODO: build tree
+//        // find max_id
+//        max_id = max_element(p.begin(), p.end(), [](const Point &a, const Point &b) {
+//            return a.id < b.id;
+//        })->id;
+//
+//        // build triangulation
+//        const auto triangulation = triangulate(p);
+//        vector<Triangle> triangles = triangulation.first;
+//        vector<Edge> edges = triangulation.second;
+//
+//        // add triangle's faces
+//        for (auto &face : bound_polygon(p)) {
+//            auto result = triangulate(face);
+//            triangles.insert(triangles.end(), result.first.begin(), result.first.end());
+//            edges.insert(edges.end(), result.second.begin(), result.second.end());
+//        }
+//
+//        // TODO: build tree
     }
 
     bool contains(const Point &point) {
@@ -384,59 +375,9 @@ public:
     }
 
     pair<vector<Triangle>, vector<Edge>> triangulate_y(Polygon points) {
-        assert(points.size() >= 3);
-        reorder_ccw(points);
-
-        unordered_map<int, Point> nextPoint;
-        for (int i = 0; i < (int) points.size(); i++) {
-            nextPoint[points[i].id] = getPoint(points, i + 1);
-        }
-
-        order_polygon(points);
-
-        vector<Triangle> triangles;
-        vector<Edge> edges;
-        vector<Point> curStack;
-        for (const Point &pnt: points) {
-            if (curStack.size() < 2) {
-                curStack.push_back(pnt);
-                continue;
-            }
-            Point last = curStack.back();
-            curStack.pop_back();
-
-            Point top = curStack[0];
-//        cerr << pnt.id << " " << top.id << " " << nextPoint[pnt.id].id << " " << nextPoint[top.id].id << endl;
-            if (nextPoint[pnt.id] == top || nextPoint[top.id] == pnt) {
-                for (int i = 0; i < (int) curStack.size() - 1; i++) {
-                    add_triangle(triangles, edges, pnt, curStack[i], curStack[i + 1]);
-                }
-                add_triangle(triangles, edges, pnt, curStack.back(), last);
-                curStack.clear();
-
-                curStack.push_back(last);
-            } else {
-                int expectedSign = last == nextPoint[pnt.id] ? 1 : -1;
-                Point cur = last;
-                while (curStack.size() > 0) {
-                    if (sign((cur - pnt) % (curStack.back() - pnt)) != expectedSign) {
-                        break;
-                    }
-                    cerr << cur.id << " " << curStack.back().id << " " << pnt.id << " " << expectedSign << endl;
-                    add_triangle(triangles, edges, cur, curStack.back(), pnt);
-                    cur = curStack.back();
-                    curStack.pop_back();
-                }
-
-                curStack.push_back(cur);
-            }
-            curStack.push_back(pnt);
-            //       cerr << curStack.size() << endl;
-        }
-
-        //   cerr << curStack.size() << endl;
-        assert(curStack.size() == 2);
-        return {triangles, edges};
+        // TODO: paste Seva's implementation
+        return {{},
+                {}};
     }
 
     pair<vector<Triangle>, vector<Edge>> triangulate(Polygon points) {
@@ -519,54 +460,12 @@ public:
                 face.push_back(triangle[state]);
             }
 
-            if (face.size() >= 3) {
+            if (faces.size() >= 3) {
                 faces.push_back(face);
             }
         }
 
         return faces;
-    }
-
-    void add_triangle(vector<Triangle> &triangles, vector<Edge> &edges, Point p1, Point p2, Point p3) {
-        long long prod = (p2 - p1) % (p3 - p2);
-
-        assert(prod != 0);
-
-        Triangle t;
-        Point p[4] = {p1, p2, p3};
-
-        if (prod < 0) {
-            reverse(p, p + 3);
-        }
-        p[3] = p[0];
-
-        for (int i = 0; i < 3; i++) {
-            Edge e = Edge(p[i].id, p[i + 1].id);
-            t.edges[i] = e;
-            edges.push_back(e);
-        }
-
-        triangles.push_back(t);
-    }
-
-    void order_polygon(Polygon &points) {
-        const auto &cmpByY = [](const Point &p1, const Point &p2) { return p1.y > p2.y; };
-        // min, max -- not an error
-        int maxPointPos = min_element(points.begin(), points.end(), cmpByY) - points.begin();
-        int minPointPos = max_element(points.begin(), points.end(), cmpByY) - points.begin();
-
-        vector<Point> path[2];
-        for (int i = minPointPos; i != maxPointPos; i = (i + 1) % points.size()) {
-            path[0].push_back(points[i]);
-        }
-
-        for (int i = maxPointPos; i != minPointPos; i = (i + 1) % points.size()) {
-            path[1].push_back(points[i]);
-        }
-
-        reverse(path[0].begin(), path[0].end());
-
-        merge(path[0].begin(), path[0].end(), path[1].begin(), path[1].end(), points.begin(), cmpByY);
     }
 
     Polygon convex_hull(Polygon points) {
@@ -606,20 +505,50 @@ public:
 };
 
 int main() {
-    freopen("input.txt", "r", stdin);
-    freopen("output.txt", "w", stdout);
+    // test cases
+    Polygon P1 = {{2, 0, 0},
+                  {3, 2, 1},
+                  {6, 0, 2},
+                  {2, 5, 3},
+                  {2, 3, 4},
+                  {0, 3, 5}};
+    Polygon P2 = {{0, 1, 0},
+                  {1, 0, 1},
+                  {1, 1, 2}};
+    Polygon P3 = {{0,   0,  0},
+                  {6,   6,  1},
+                  {14,  1,  2},
+                  {2,   21, 3},
+                  {-1,  16, 4},
+                  {-9,  20, 5},
+                  {-3,  12, 6},
+                  {-11, 16, 7},
+                  {-7,  6,  8}};
+    Polygon P4 = {{0, 1, 0},
+                  {0, 2, 1},
+                  {1, 2, 2},
+                  {1, 3, 3},
+                  {2, 3, 4},
+                  {2, 2, 5},
+                  {3, 2, 6},
+                  {3, 1, 7},
+                  {2, 1, 8},
+                  {2, 0, 9},
+                  {1, 0, 10},
+                  {1, 1, 11}};
+    Polygon P5 = {{1, 0, 1},
+                  {1, 1, 2},
+                  {2, 0, 5}};
+    auto P = P5;
 
-    Polygon p;
+    auto k = Kirkpatrick(P);
+    auto res = k.split_y(P);
 
-    int n, a, b;
-
-    cin >> n;
-    for (int i = 0; i < n; ++i) {
-        cin >> a >> b;
-        p.push_back(Point(a, b, i));
+    for (int i = 0; i < int(res.size()); i++) {
+        cout << i + 1 << "th polygon:" << endl;
+        print_polygon(res[i]);
+        if (i != int(res.size()) - 1) {
+            cout << "------------" << endl;
+        }
     }
-
-    auto algo = Kirkpatrick(p);
-
-    return 0;
 }
