@@ -188,13 +188,8 @@ public:
         unordered_map<int, Point> U; // U for universe
         for (auto &p: P) U[p.id] = p;
 
-        struct PointHasher {
-            size_t operator()(const Point &p) const {
-                return hash<int>()(p.id);
-            }
-        };
-        unordered_map<Point, int, PointHasher> pos;
-        for (int i = 0; i < int(P.size()); i++) pos[P[i]] = i;
+        unordered_map<int, int> pos;
+        for (int i = 0; i < int(P.size()); i++) pos[P[i].id] = i;
         struct EdgeHasher {
             size_t operator()(const Edge &e) const {
                 return hash<int>()(e.fromId) ^ hash<int>()(e.toId);
@@ -214,7 +209,7 @@ public:
 
         // vertex_type
         auto vertex_type = [&](const Point &p) {
-            auto &r = P[(pos[p] + 1) % P.size()], &q = P[(pos[p] - 1 + P.size()) % P.size()];
+            auto &r = P[(pos[p.id] + 1) % P.size()], &q = P[(pos[p.id] - 1 + P.size()) % P.size()];
             auto a = (q - p).angle(r - p);
             if (is_right_turn(p, q, r)) a = 2 * M_PI - a;
             if (pcmp(q, p) && pcmp(r, p) && a < M_PI) {
@@ -241,8 +236,8 @@ public:
             Q.pop();
 
             auto type = vertex_type(vi);
-            auto vi_1 = P[(pos[vi] - 1 + P.size()) % P.size()];  // v_{i - 1}
-            auto vi1 = P[(pos[vi] + 1) % P.size()];  // v_{i + 1}
+            auto vi_1 = P[(pos[vi.id] - 1 + P.size()) % P.size()];  // v_{i - 1}
+            auto vi1 = P[(pos[vi.id] + 1) % P.size()];  // v_{i + 1}
             auto ei = Edge(vi.id, vi1.id);  // e_i
             auto ei_1 = Edge(vi_1.id, vi.id);  // e_{i - 1}
 
@@ -306,28 +301,24 @@ public:
             return la > ra;
         };
         vector<set<int, decltype(cmp)>> G(P.size(), set<int, decltype(cmp)>(cmp));
-        unordered_map<int, int> posi;
-        for (int i = 0; i < int(P.size()); i++) {
-            posi[P[i].id] = i;
-        }
         for (int i = 0; i + 1 < int(P.size()); i++) {
             auto l = P[i].id, r = P[i + 1].id;
             cur_base = l;
-            G[posi[l]].insert(r);
+            G[pos[l]].insert(r);
             cur_base = r;
-            G[posi[r]].insert(l);
+            G[pos[r]].insert(l);
         }
         auto l = P[0].id, r = P[int(P.size()) - 1].id;
         cur_base = l;
-        G[posi[l]].insert(r);
+        G[pos[l]].insert(r);
         cur_base = r;
-        G[posi[r]].insert(l);
+        G[pos[r]].insert(l);
         for (auto &e : D) {
             auto l = U[e.fromId].id, r = U[e.toId].id;
             cur_base = l;
-            G[posi[l]].insert(r);
+            G[pos[l]].insert(r);
             cur_base = r;
-            G[posi[r]].insert(l);
+            G[pos[r]].insert(l);
         }
 
         // run dfs to collect faces
@@ -346,7 +337,7 @@ public:
                 if (start == -1) start = x;
                 cur_pts.push_back(x);
             }
-            int px = posi[x];
+            int px = pos[x];
             if (!G[px].empty()) {
                 auto it = G[px].upper_bound(p);
                 if (it == G[px].end()) it = G[px].begin();
@@ -358,7 +349,7 @@ public:
         };
         for (auto &p : P) {
             cur_base = p.id;
-            if (!G[posi[p.id]].empty()) {
+            if (!G[pos[p.id]].empty()) {
                 start = -1;
                 cur_pts.clear();
                 dfs(p.id, p.id);
