@@ -1,3 +1,5 @@
+#include <functional>
+#include <algorithm>
 #include <iostream>
 #include <vector>
 #include <cassert>
@@ -5,6 +7,7 @@
 #include <cmath>
 #include <unordered_map>
 #include <set>
+#include <unordered_set>
 
 using namespace std;
 
@@ -17,7 +20,7 @@ struct Point {
 
     Point(int x_, int y_, int id_) : x(x_), y(y_), id(id_) {}
 
-    //Note: id of + and - is undefined
+    //Note: _id of + and - is undefined
     Point operator+(const Point &p) const {
         return Point(x + p.x, y + p.y);
     }
@@ -26,7 +29,7 @@ struct Point {
         return Point(x - p.x, y - p.y);
     }
 
-    // += and -= preserves id
+    // += and -= preserves _id
     Point &operator+=(const Point &p) {
         x += p.x;
         y += p.y;
@@ -49,8 +52,8 @@ struct Point {
     }
 
     bool operator==(const Point &p) const {
-//        cout << x << " " << y << " " << id << endl;
-//        cout << p.x << " " << p.y << " " << p.id << endl;
+//        cout << x << " " << y << " " << _id << endl;
+//        cout << p.x << " " << p.y << " " << p._id << endl;
         int eqXY = make_pair(x, y) == make_pair(p.x, p.y);
         int eqId = id == p.id;
         assert(eqXY == eqId);
@@ -78,10 +81,14 @@ struct Point {
         if (a < 0) a += 2 * M_PI;
         return a;
     }
+
+    double atan() const {
+        return atan2((double) y, (double) (x == 0 && y == 0) ? 1 : x);
+    }
 };
 
 ostream &operator<<(ostream &stream, const Point &p) {
-    stream << "(" << p.x << ", " << p.y << ", id=" << p.id << ")";
+    stream << "(" << p.x << ", " << p.y << ", _id=" << p.id << ")";
     return stream;
 }
 
@@ -119,7 +126,7 @@ typedef vector<Point> Polygon;
 void print_polygon(Polygon &points) {
     printf("%d\n", (int) points.size());
     for (auto point : points) {
-        printf("%d %d id=%d\n", point.x, point.y, point.id);
+        printf("%d %d _id=%d\n", point.x, point.y, point.id);
     }
 }
 
@@ -153,10 +160,140 @@ inline int sign(long long x) {
 
 class Kirkpatrick {
 private:
+    class Node {
+    public:
+        Node(Triangle triangle, size_t id)
+                : _triangle(triangle), _children(), _id(id) {}
+
+        Node(Triangle triangle, vector<size_t> children, size_t id)
+                : _triangle(triangle), _children(children), _id(id) {}
+
+        Triangle getTriangle() const {
+            return _triangle;
+        }
+
+        vector<size_t> getChildren() const {
+            return _children;
+        }
+
+        void addChild(size_t nodeId) {
+            _children.push_back(nodeId);
+        }
+
+        size_t getId() const {
+            return _id;
+        }
+
+    private:
+        Triangle _triangle;
+        vector<size_t> _children;
+        size_t _id;
+    };
+
+    class Vertex {
+    public:
+
+        explicit Vertex(const Point &point)
+                : _deg(0), _point(point), _incidentEdges(), _incidentTriangles() {}
+
+        Vertex() {}
+
+        int _deg;
+        Point _point;
+        vector<size_t> _incidentEdges;
+        vector<size_t> _incidentTriangles;
+
+        Point &getPoint() {
+            return _point;
+        }
+
+        int getId() const {
+            return _point.id;
+        }
+
+        void decDegree() {
+            --_deg;
+        }
+
+        vector<size_t> &incidentEdges() {
+            return _incidentEdges;
+        }
+
+        vector<size_t> &incidentTriangles() {
+            return _incidentTriangles;
+        }
+
+        void addInEdge(size_t edgeIndex) {
+            _incidentEdges.push_back(edgeIndex);
+        }
+
+        void addOutEdge(size_t edgeIndex) {
+            _incidentEdges.push_back(edgeIndex);
+            ++_deg;
+        }
+
+        void addTriangle(size_t triangleIndex) {
+            if (!_incidentTriangles.empty() && _incidentTriangles.back() == triangleIndex) {
+                return;
+            }
+            _incidentTriangles.push_back(triangleIndex);
+        }
+
+        int degree() const {
+            return _deg;
+        }
+    };
+
+private:
     int max_id;
+    Polygon polygon;
+    vector<Node> dgraph;
+    static const int K = 6;
+    size_t outsideTrianglesIdBegin;
+    size_t outsideTrianglesIdEnd;
+
+
+    bool isBoundTrianglePoint(int pointId) {
+        return max_id - 3 < pointId && pointId <= max_id;
+    }
+
+    bool isIntersected(const Triangle &first, const Triangle &second) {
+        bool result = false;
+        for_each(first.edges, first.edges + 3, [this, &result, &second](const Edge &firstEdge) {
+            bool intersect = triangleContains(second, polygon[firstEdge.fromId]) ||
+                             triangleContains(second, polygon[firstEdge.toId]);
+            if (intersect) {
+                result = true;
+            }
+        });
+        return result;
+    }
+
+    bool triangleContains(const Triangle &triangle, const Point &point) {
+        bool result = true;
+        for_each(triangle.edges, triangle.edges + 3, [this, &result, &point](const Edge &edge) {
+            result &= isLeftRotation(polygon[edge.fromId], polygon[edge.toId], point);
+        });
+        return result;
+    }
+
+    bool isLeftRotation(const Point &p, const Point &q, const Point &r) {
+        int64_t temp = 1ll * (q.x - p.x) * (r.y - q.y) - 1ll * (r.x - q.x) * (q.y - p.y);
+        return temp >= 0;
+    }
+
+    Edge getNonIncidentEdge(const Triangle &triangle, int vertexId) {
+        for (auto edge : triangle.edges) {
+            if (edge.fromId != vertexId && edge.toId != vertexId) {
+                return edge;
+            }
+        }
+        assert(false);
+    }
 
 public:
-    Kirkpatrick(Polygon &p) {
+    Kirkpatrick(Polygon &p)
+            : polygon(p) {
         // find max_id
         max_id = max_element(p.begin(), p.end(), [](const Point &a, const Point &b) {
             return a.id < b.id;
@@ -167,25 +304,199 @@ public:
         vector<Triangle> triangles = triangulation.first;
         vector<Edge> edges = triangulation.second;
 
-        // add triangle's faces
+        // using in contains, to check whether current _triangle inside polygon or not
+        outsideTrianglesIdBegin = triangles.size();
+
+        // add _triangle's faces
         for (auto &face : bound_polygon(p)) {
             auto result = triangulate(face);
             triangles.insert(triangles.end(), result.first.begin(), result.first.end());
             edges.insert(edges.end(), result.second.begin(), result.second.end());
         }
 
-        // TODO: build tree
+//        // also using in contains
+//        outsideTrianglesIdEnd = triangles.size();
+//        buildDGraph(triangles, edges);
+    }
+
+    void buildDGraph(vector<Triangle> triangles, vector<Edge> edges) {
+        for_each(triangles.begin(), triangles.end(), [this](const Triangle &triangle) {
+            size_t id = dgraph.size();
+            dgraph.push_back(Node(triangle, id));
+        });
+
+        unordered_map<int, Vertex> idToVertex;
+
+        for_each(polygon.begin(), polygon.end(), [&idToVertex](const Point &point) {
+            idToVertex[point.id] = Vertex(point);
+        });
+
+        for (size_t i = 0; i < edges.size(); ++i) {
+            idToVertex[edges[i].fromId].addOutEdge(i);
+            idToVertex[edges[i].toId].addInEdge(i);
+        }
+
+        for (size_t i = 0; i < triangles.size(); ++i) {
+            for_each(triangles[i].edges, triangles[i].edges + 3, [&idToVertex, &i](const Edge &edge) {
+                idToVertex[edge.fromId].addTriangle(i);
+            });
+        }
+
+        vector<bool> deletedTriangles(triangles.size(), false);
+        vector<bool> deletedEdges(edges.size(), false);
+        while (idToVertex.size() > 3) {
+            unordered_set<int> incidentVertex{};
+            vector<int> deletedVertex{};
+            for (std::pair<const int, Vertex> &vertexIt: idToVertex) {
+                int vertexId = vertexIt.first;
+                Vertex vertex = vertexIt.second;
+                if (incidentVertex.find(vertexId) == incidentVertex.end() &&
+                    !isBoundTrianglePoint(vertexId) && vertex.degree() < K) {
+
+                    for_each(vertex.incidentEdges().begin(), vertex.incidentEdges().end(),
+                             [&edges, &idToVertex, &deletedEdges, &incidentVertex](size_t edgeIndex) {
+                                 if (!deletedEdges[edgeIndex]) {
+                                     incidentVertex.insert(edges[edgeIndex].fromId);
+                                     incidentVertex.insert(edges[edgeIndex].toId);
+                                     idToVertex[edges[edgeIndex].fromId].decDegree();
+                                     deletedEdges[edgeIndex] = true;
+                                 }
+                             }
+                    );
+//                    std::cout << "delete vertex " << vertexId << std::endl;
+                    vector<Edge> polygonSide{};
+                    Polygon polygon4Trian{};
+                    vector<size_t> deletedTrianglesId{};
+
+                    for_each(vertex.incidentTriangles().begin(),
+                             vertex.incidentTriangles().end(),
+                             [this, &idToVertex, &polygonSide,
+                                     &deletedTriangles, &deletedTrianglesId, &vertexId](size_t triangleId) {
+                                 if (!deletedTriangles[triangleId]) {
+                                     Edge nonIncidentEdge = getNonIncidentEdge(dgraph[triangleId].getTriangle(),
+                                                                               vertexId);
+                                     polygonSide.push_back(nonIncidentEdge);
+                                     idToVertex[nonIncidentEdge.fromId].decDegree();
+                                     deletedTrianglesId.push_back(triangleId);
+                                     deletedTriangles[triangleId] = true;
+                                 }
+                             }
+                    );
+
+                    Point point = polygon[vertex.getId()];
+                    std::sort(polygonSide.begin(), polygonSide.end(),
+                              [this, &idToVertex, &point](const Edge &first, const Edge &second) {
+                                  Point a = idToVertex[first.fromId].getPoint();
+                                  Point b = idToVertex[second.fromId].getPoint();
+
+                                  if (a.x - point.x >= 0 && b.x - point.x < 0) {
+                                      return false;
+                                  }
+                                  if (a.x - point.x < 0 && b.x - point.x >= 0) {
+                                      return true;
+                                  }
+                                  if (a.x - point.x == 0 && b.x - point.x == 0) {
+                                      return a.y < b.y;
+                                  }
+
+                                  int64_t det = 1ll * (a.x - point.x) * (b.y - point.y) -
+                                                1ll * (b.x - point.x) * (a.y - point.y);
+                                  if (det > 0) {
+                                      return true;
+                                  }
+                                  if (det < 0) {
+                                      return false;
+                                  }
+                                  int64_t dist1 =
+                                          1ll * (a.x - point.x) * (a.x - point.x) + (a.y - point.y) * (a.y - point.y);
+                                  int64_t dist2 =
+                                          1ll * (b.x - point.x) * (b.x - point.x) + (b.y - point.y) * (b.y - point.y);
+
+                                  return dist1 < dist2;
+                              });
+                    for_each(polygonSide.begin(), polygonSide.end(), [this, &polygon4Trian](const Edge &edge) {
+                        polygon4Trian.push_back(polygon[edge.fromId]);
+                    });
+//                    std::cout << "point for polygon\n";
+//                    for_each(polygon4Trian.begin(), polygon4Trian.end(), [] (const Point& point) {
+//                        std::cout << point.x << "  " << point.y << std::endl;
+//                    });
+
+                    auto triangulation = triangulate(polygon4Trian);
+                    vector<Triangle> insideTriangles = triangulation.first;
+                    vector<Edge> insideEdges = triangulation.second;
+
+//                    std::cout << "getting triangulation\n";
+//                    for_each(insideTriangles.begin(), insideTriangles.end(), [this] (const Triangle& triangle) {
+//                        for_each(triangle.edges, triangle.edges + 3, [this] (const Edge& edge) {
+//                            std::cout << polygon[edge.fromId].x << " " << polygon[edge.fromId].y << " ";
+//                        });
+//                        std::cout << "\n";
+//                    });
+
+                    for_each(insideTriangles.begin(), insideTriangles.end(),
+                             [this, &triangles, &idToVertex,
+                                     &deletedTrianglesId, &deletedTriangles](Triangle &triangle) {
+                                 size_t triangleId = dgraph.size();
+                                 deletedTriangles.push_back(false);
+                                 dgraph.push_back(Node(triangle, triangleId));
+
+                                 for_each(triangle.edges, triangle.edges + 3,
+                                          [&triangleId, &idToVertex](Edge &edge) {
+                                              idToVertex[edge.fromId].addTriangle(triangleId);
+                                          }
+                                 );
+                                 for_each(deletedTrianglesId.begin(), deletedTrianglesId.end(),
+                                          [this, &triangleId, &triangles](size_t deletedTriangleId) {
+                                              if (isIntersected(dgraph[triangleId].getTriangle(),
+                                                                dgraph[deletedTriangleId].getTriangle())) {
+
+                                                  dgraph[triangleId].addChild(deletedTriangleId);
+                                              }
+                                          }
+                                 );
+
+                             }
+                    );
+                    for_each(insideEdges.begin(), insideEdges.end(),
+                             [&idToVertex, &edges, &deletedEdges](Edge &edge) {
+                                 size_t edgeIndex = edges.size();
+                                 edges.push_back(edge);
+                                 deletedEdges.push_back(false);
+                                 idToVertex[edge.fromId].addOutEdge(edgeIndex);
+                                 idToVertex[edge.toId].addInEdge(edgeIndex);
+                             }
+                    );
+                    deletedVertex.push_back(vertexId);
+                }
+            }
+            for_each(deletedVertex.begin(), deletedVertex.end(), [&idToVertex](int id) {
+                idToVertex.erase(id);
+            });
+        }
     }
 
     bool contains(const Point &point) {
-        // TODO: implement
-        return false;
+        Node root = dgraph.back();
+        while (!root.getChildren().empty()) {
+            if (!triangleContains(root.getTriangle(), point)) {
+                return false;
+            }
+            for (size_t childNodeId: root.getChildren()) {
+                Node childNode = dgraph[childNodeId];
+                if (triangleContains(childNode.getTriangle(), point)) {
+                    root = childNode;
+                    break;
+                }
+            }
+        }
+        return !(root.getId() >= outsideTrianglesIdBegin && root.getId() <= outsideTrianglesIdEnd);
     }
 
     vector<Polygon> split_y(Polygon &P) {
         reorder_ccw(P);
 
-        unordered_map<int, Point> U; // U for universe
+        unordered_map<int, Point> U;  // U is for universe
         for (auto &p: P) U[p.id] = p;
 
         unordered_map<int, int> pos;
@@ -198,8 +509,20 @@ public:
 
         // T
         auto ecmp = [&U](const Edge &el, const Edge &er) {
-            auto l = (U[el.toId].x + U[el.fromId].x) / 2., r = (U[er.toId].x + U[er.fromId].x) / 2.;
-            return l < r;
+            auto a = U[el.fromId], b = U[el.toId];
+            if (a.y > b.y) swap(a, b);
+            auto c = U[er.fromId], d = U[er.toId];
+            if (c.y > d.y) swap(c, d);
+            assert(a != b || c != d);
+            if (a == b) {
+                return is_right_turn(c, d, a);
+            } else if (c == d) {
+                return is_left_turn(a, b, c);
+            } else {
+                auto f = is_right_turn(c, d, a) && is_right_turn(c, d, b);
+                auto s = is_left_turn(a, b, c) && is_left_turn(a, b, d);
+                return s || f;
+            }
         };
         set<Edge, decltype(ecmp)> T(ecmp);
 
@@ -293,12 +616,20 @@ public:
             }
         }
 
+//        // D Output
+//        cout << "D.size() is " << D.size() << endl;
+//        cout << D.size() << endl;
+//        for (auto &e: D) {
+//            cout << P[pos[e.fromId]].x << " " << P[pos[e.fromId]].y << " ";
+//            cout << P[pos[e.toId]].x << " " << P[pos[e.toId]].y << endl;
+//        }
+
         // construct graph
         int cur_base = -1;
         auto cmp = [&](int ll, int rr) {
             auto &p = U[cur_base], &q = U[ll], &r = U[rr];
-            auto la = (q - p).fatan(), ra = (r - p).fatan();
-            return la > ra;
+            auto p1 = (q - p), p2 = (r - p);
+            return p1.fatan() > p2.fatan();
         };
         vector<set<int, decltype(cmp)>> G(P.size(), set<int, decltype(cmp)>(cmp));
         for (int i = 0; i + 1 < int(P.size()); i++) {
@@ -322,7 +653,6 @@ public:
         }
 
         // run dfs to collect faces
-        vector<Polygon> res;
         vector<vector<int>> resi;
         int start = -1;
         vector<int> cur_pts;
@@ -345,18 +675,19 @@ public:
                 G[px].erase(n);
                 dfs(n, x);
             }
-
         };
         for (auto &p : P) {
             cur_base = p.id;
-            if (!G[pos[p.id]].empty()) {
+            while (!G[pos[p.id]].empty()) {
                 start = -1;
                 cur_pts.clear();
                 dfs(p.id, p.id);
+                cur_base = p.id;
             }
         }
 
         // delete outer face and map id to points
+        vector<Polygon> res;
         bool meet_outer = false;
         for (auto &pi: resi) {
             if (!meet_outer && pi.size() == P.size()) {
@@ -371,6 +702,7 @@ public:
             reorder_ccw(nP);
             res.push_back(nP);
         }
+        assert(meet_outer);
         return res;
     }
 
@@ -397,7 +729,7 @@ public:
             curStack.pop_back();
 
             Point top = curStack[0];
-//        cerr << pnt.id << " " << top.id << " " << nextPoint[pnt.id].id << " " << nextPoint[top.id].id << endl;
+//        cerr << pnt._id << " " << top._id << " " << nextPoint[pnt._id]._id << " " << nextPoint[top._id]._id << endl;
             if (nextPoint[pnt.id] == top || nextPoint[top.id] == pnt) {
                 for (int i = 0; i < (int) curStack.size() - 1; i++) {
                     add_triangle(triangles, edges, pnt, curStack[i], curStack[i + 1]);
@@ -462,58 +794,48 @@ public:
         reorder_ccw(points);
         rotate(points.begin(), min_element(points.begin(), points.end(), PointCmp()), points.end());
 
-        // build convex hull
-        const auto hull = convex_hull(points);
-
         // find left bottom corner
-        const int min_x = min_element(hull.begin(), hull.end(), PointCmpByX())->x;
-        const int min_y = min_element(hull.begin(), hull.end(), PointCmpByY())->y;
+        const int min_x = min_element(points.begin(), points.end(), PointCmpByX())->x - 1;
+        const int min_y = min_element(points.begin(), points.end(), PointCmpByY())->y - 1;
 
         // find the farthest point
-        auto farthest = *max_element(hull.begin(), hull.end(), [](const Point &a, const Point &b) {
+        auto farthest = *max_element(points.begin(), points.end(), [](const Point &a, const Point &b) {
             return a.x + a.y < b.x + b.y;
         });
 
         // find other coordinates
-        const int max_x = farthest.x + (farthest.y - min_y);
-        const int max_y = farthest.y + (farthest.x - min_x);
+        const int max_x = farthest.x + (farthest.y - min_y) + 1;
+        const int max_y = farthest.y + (farthest.x - min_x) + 1;
 
         const Polygon triangle = {Point(min_x, min_y, ++max_id),
                                   Point(max_x, min_y, ++max_id),
                                   Point(min_x, max_y, ++max_id)};
 
-        int state = 0;
+        polygon.insert(polygon.end(), triangle.begin(), triangle.end());
         int iter = 0;
 
-        vector<Polygon> faces;
-
-        for (int i = 0; i < hull.size(); ++i) {
-            int j = (i == hull.size() - 1 ? 0 : i + 1);
-
-            Polygon face;
-
-            while (points[iter] != hull[j]) {
-                face.push_back(points[iter]);
-                iter = (iter == points.size() - 1 ? 0 : iter + 1);
-            }
-
-            face.push_back(points[iter]);
-
-            bool is_vertical = (hull[j].x == hull[i].x && hull[j].y < hull[i].y);
-            bool is_horizontal = (hull[j].x > hull[i].x && hull[j].y == hull[i].y);
-            bool is_45_degree = (hull[j].x < hull[i].x && hull[i].x - hull[j].x == hull[j].y - hull[i].y);
-            bool is_any = is_vertical || is_horizontal || is_45_degree;
-
-            if (is_any) {
-                state = (is_vertical ? 0 : (is_horizontal ? 1 : 2));
-            } else {
-                face.push_back(triangle[state]);
-            }
-
-            if (face.size() >= 3) {
-                faces.push_back(face);
-            }
+        Polygon p1;
+        p1.push_back(triangle[0]);
+        while (points[iter].id != farthest.id) {
+            p1.push_back(points[iter++]);
         }
+        p1.push_back(points[iter]);
+        p1.push_back(triangle[1]);
+
+        Polygon p2;
+        p2.push_back(triangle[1]);
+        p2.push_back(farthest);
+        p2.push_back(triangle[2]);
+
+        Polygon p3;
+        p3.push_back(triangle[2]);
+        while (iter < points.size()) {
+            p3.push_back(points[iter++]);
+        }
+        p3.push_back(points[0]);
+        p3.push_back(triangle[0]);
+
+        vector<Polygon> faces = {p1, p2, p3};
 
         return faces;
     }
@@ -607,10 +929,20 @@ int main() {
     cin >> n;
     for (int i = 0; i < n; ++i) {
         cin >> a >> b;
-        p.push_back(Point(a, b, i));
+        p.emplace_back(a, b, i);
     }
 
     auto algo = Kirkpatrick(p);
+//    cout << algo.contains(Point(3, 2));
+
+//    auto res = algo.split_y(p);
+//    for (int i = 0; i < int(res.size()); i++) {
+//        cout << i + 1 << "th polygon:" << endl;
+//        print_polygon(res[i]);
+//        if (i != int(res.size()) - 1) {
+//            cout << "------------" << endl;
+//        }
+//    }
 
     return 0;
 }
