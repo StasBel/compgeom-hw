@@ -78,6 +78,7 @@ struct Point {
 
     double fatan() const {
         auto a = atan2((double) y, (double) (x == 0 && y == 0) ? 1 : x);
+//        auto a = atan2(y, x);
         if (a < 0) a += 2 * M_PI;
         return a;
     }
@@ -494,6 +495,7 @@ public:
     }
 
     vector<Polygon> split_y(Polygon &P) {
+//        print_polygon(P);
         reorder_ccw(P);
 
         unordered_map<int, Point> U;  // U is for universe
@@ -629,7 +631,13 @@ public:
         auto cmp = [&](int ll, int rr) {
             auto &p = U[cur_base], &q = U[ll], &r = U[rr];
             auto p1 = (q - p), p2 = (r - p);
+//            auto p1a = p1.atan(), p2a = p2.atan();
+//            return p1a > p2a || (p1a == p2a || p1.dist() < p2.dist());
             return p1.fatan() > p2.fatan();
+//            if (p1.y == p2.y == 0) {
+//                return p1.x > p2.x;
+//            }
+//            return 1LL * p1.x * p2.y > 1LL * p1.y * p2.x;
         };
         vector<set<int, decltype(cmp)>> G(P.size(), set<int, decltype(cmp)>(cmp));
         for (int i = 0; i + 1 < int(P.size()); i++) {
@@ -699,6 +707,7 @@ public:
             for (auto i: pi) {
                 nP.push_back(U[i]);
             }
+            assert(nP.size() >= 3);
             reorder_ccw(nP);
             res.push_back(nP);
         }
@@ -933,7 +942,6 @@ int main() {
     }
 
     auto algo = Kirkpatrick(p);
-//    cout << algo.contains(Point(3, 2));
 
 //    auto res = algo.split_y(p);
 //    for (int i = 0; i < int(res.size()); i++) {
