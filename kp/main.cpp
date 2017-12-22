@@ -495,7 +495,6 @@ public:
     }
 
     vector<Polygon> split_y(Polygon &P) {
-//        print_polygon(P);
         reorder_ccw(P);
 
         unordered_map<int, Point> U;  // U is for universe
@@ -631,13 +630,7 @@ public:
         auto cmp = [&](int ll, int rr) {
             auto &p = U[cur_base], &q = U[ll], &r = U[rr];
             auto p1 = (q - p), p2 = (r - p);
-//            auto p1a = p1.atan(), p2a = p2.atan();
-//            return p1a > p2a || (p1a == p2a || p1.dist() < p2.dist());
             return p1.fatan() > p2.fatan();
-//            if (p1.y == p2.y == 0) {
-//                return p1.x > p2.x;
-//            }
-//            return 1LL * p1.x * p2.y > 1LL * p1.y * p2.x;
         };
         vector<set<int, decltype(cmp)>> G(P.size(), set<int, decltype(cmp)>(cmp));
         for (int i = 0; i + 1 < int(P.size()); i++) {
@@ -821,14 +814,19 @@ public:
                                   Point(min_x, max_y, ++max_id)};
 
         polygon.insert(polygon.end(), triangle.begin(), triangle.end());
+
         int iter = 0;
 
         Polygon p1;
         p1.push_back(triangle[0]);
-        while (points[iter].id != farthest.id) {
+        while (iter == 0 || (iter < points.size() && points[iter].id != farthest.id)) {
             p1.push_back(points[iter++]);
         }
-        p1.push_back(points[iter]);
+
+        if (iter < points.size()) {
+            p1.push_back(points[iter]);
+        }
+
         p1.push_back(triangle[1]);
 
         Polygon p2;
@@ -845,7 +843,6 @@ public:
         p3.push_back(triangle[0]);
 
         vector<Polygon> faces = {p1, p2, p3};
-
         return faces;
     }
 
