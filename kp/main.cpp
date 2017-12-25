@@ -980,7 +980,7 @@ int main() {
         cin >> c;
         for (int i = 0; i < c; ++i) {
             cin >> a >> b;
-            cout << (algo.contains({a, b}) ? "INSIDE" : "OUTSIDE") << endl;
+//            cout << (algo.contains({a, b}) ? "INSIDE" : "OUTSIDE") << endl;
         }
 
     }
