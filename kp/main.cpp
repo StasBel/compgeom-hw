@@ -305,15 +305,15 @@ public:
         vector<Triangle> triangles = triangulation.first;
         vector<Edge> edges = triangulation.second;
 
-//        // using in contains, to check whether current _triangle inside polygon or not
-//        outsideTrianglesIdBegin = triangles.size();
-//
-//        // add _triangle's faces
-//        for (auto &face : bound_polygon(p)) {
-//            auto result = triangulate(face);
-//            triangles.insert(triangles.end(), result.first.begin(), result.first.end());
-//            edges.insert(edges.end(), result.second.begin(), result.second.end());
-//        }
+        // using in contains, to check whether current _triangle inside polygon or not
+        outsideTrianglesIdBegin = triangles.size();
+
+        // add _triangle's faces
+        for (auto &face : bound_polygon(p)) {
+            auto result = triangulate(face);
+            triangles.insert(triangles.end(), result.first.begin(), result.first.end());
+            edges.insert(edges.end(), result.second.begin(), result.second.end());
+        }
 
 //        // also using in contains
 //        outsideTrianglesIdEnd = triangles.size();
@@ -495,10 +495,6 @@ public:
     }
 
     vector<Polygon> split_y(Polygon &P) {
-//        cout << "SPLIT_Y" << endl;
-//        print_polygon(P);
-//        cerr << "KEK " << endl;
-
         reorder_ccw(P);
 
         unordered_map<int, Point> U;  // U is for universe
@@ -623,11 +619,11 @@ public:
 
 //        // D Output
 //        cout << "D.size() is " << D.size() << endl;
-        cout << D.size() << endl;
-        for (auto &e: D) {
-            cout << P[pos[e.fromId]].x << " " << P[pos[e.fromId]].y << " ";
-            cout << P[pos[e.toId]].x << " " << P[pos[e.toId]].y << endl;
-        }
+//        cout << D.size() << endl;
+//        for (auto &e: D) {
+//            cout << P[pos[e.fromId]].x << " " << P[pos[e.fromId]].y << " ";
+//            cout << P[pos[e.toId]].x << " " << P[pos[e.toId]].y << endl;
+//        }
 //        cerr << "END D" << endl;
 //        cerr << "D SIZE " << D.size() << endl;
         for (auto &e : D) {
@@ -640,8 +636,6 @@ public:
             auto &p = U[cur_base], &q = U[ll], &r = U[rr];
             auto p1 = (q - p), p2 = (r - p);
             return p1.fatan() > p2.fatan();
-//            return p1.atan() > p2.atan();
-//            return true;
         };
         vector<set<int, decltype(cmp)>> G(P.size(), set<int, decltype(cmp)>(cmp));
         for (int i = 0; i + 1 < int(P.size()); i++) {
@@ -679,29 +673,20 @@ public:
                 if (start == -1) start = x;
                 cur_pts.push_back(x);
             }
-//            cerr << U[x] << endl;
-//            cerr << "FAULT 3 " << pos.count(x) << endl;
             int px = pos[x];
-//            cerr << "FAULT 4" << endl;
             if (!G[px].empty()) {
-//                cerr << "FAULT 5" << endl;
                 auto it = G[px].upper_bound(p);
-//                cerr << "FAULT 6" << endl;
                 if (it == G[px].end()) it = G[px].begin();
                 int n = *it;
-//                cerr << "FAULT 7 " << G[px].count(n) << endl;
                 G[px].erase(n);
-//                cerr << "FAULT 8" << endl;
                 dfs(n, x);
             }
         };
         for (auto &p : P) {
             cur_base = p.id;
-//            cerr << "FAULT 1" << endl;
             while (!G[pos[p.id]].empty()) {
                 start = -1;
                 cur_pts.clear();
-//                cerr << "FAULT 2" << endl;
                 dfs(p.id, p.id);
                 cur_base = p.id;
             }
@@ -908,7 +893,9 @@ public:
 
     void order_polygon(Polygon &points) {
         const auto &cmpByY = [](const Point &p1, const Point &p2) { return p1.y > p2.y; };
-        const auto &cmpByYX = [](const Point &p1, const Point &p2) { return make_pair(p1.y, p1.x) > make_pair(p2.y, p2.x); };
+        const auto &cmpByYX = [](const Point &p1, const Point &p2) {
+            return make_pair(p1.y, p1.x) > make_pair(p2.y, p2.x);
+        };
         // min, max — not an error
         int maxPointPos = min_element(points.begin(), points.end(), cmpByYX) - points.begin();
         int minPointPos = max_element(points.begin(), points.end(), cmpByYX) - points.begin();
@@ -970,35 +957,30 @@ public:
 };
 
 int main() {
-    freopen("input.txt", "r", stdin);
+    freopen("input_pub.txt", "r", stdin);
     freopen("output.txt", "w", stdout);
 
     int m;
-//    cin >> m;
-    m = 1;
+    cin >> m;
 
     for (int j = 0; j < m; ++j) {
         cerr << j << endl;
 
         Polygon p;
-        int n, a, b, c, id;
+        int n, a, b, c;
 
         cin >> n;
         for (int i = 0; i < n; ++i) {
-            cin >> a >> b >> id;
-            p.emplace_back(a, b, id);
+            cin >> a >> b;
+            p.emplace_back(a, b, i);
         }
-
-//        if (j == 3643) {
-//            print_polygon(p);
-//        }
 
         auto algo = Kirkpatrick(p);
 
         cin >> c;
         for (int i = 0; i < c; ++i) {
             cin >> a >> b;
-//            cout << (algo.contains({a, b}) ? "INSIDE" : "OUTSIDE") << endl;
+            cout << (algo.contains({a, b}) ? "INSIDE" : "OUTSIDE") << endl;
         }
 
     }
