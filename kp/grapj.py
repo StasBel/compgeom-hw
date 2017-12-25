@@ -49,5 +49,5 @@ def plot_l(l, show=True):
 if __name__ == '__main__':
     plot_p(read_p('input.txt'), show=False)
     plot_l(read_l('output.txt'))
-    # plot_p(read_p('input_pub.txt'), show=False)
-    # plot_l(read_l())
+    # plot_p(read_p('output.txt'))
+    # plot_p(read_p('input.txt'))
