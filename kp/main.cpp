@@ -315,9 +315,9 @@ public:
             edges.insert(edges.end(), result.second.begin(), result.second.end());
         }
 
-        // also using in contains
-        outsideTrianglesIdEnd = triangles.size();
-        buildDGraph(triangles, edges);
+//        // also using in contains
+//        outsideTrianglesIdEnd = triangles.size();
+//        buildDGraph(triangles, edges);
     }
 
     void buildDGraph(vector<Triangle> triangles, vector<Edge> edges) {
