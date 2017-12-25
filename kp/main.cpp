@@ -9,6 +9,8 @@
 #include <set>
 #include <unordered_set>
 
+#pragma comment(linker, "/STACK: 2000000")
+
 using namespace std;
 
 struct Point {
@@ -52,8 +54,6 @@ struct Point {
     }
 
     bool operator==(const Point &p) const {
-//        cout << x << " " << y << " " << _id << endl;
-//        cout << p.x << " " << p.y << " " << p._id << endl;
         int eqXY = make_pair(x, y) == make_pair(p.x, p.y);
         int eqId = id == p.id;
         assert(eqXY == eqId);
@@ -315,9 +315,9 @@ public:
             edges.insert(edges.end(), result.second.begin(), result.second.end());
         }
 
-//        // also using in contains
-//        outsideTrianglesIdEnd = triangles.size();
-//        buildDGraph(triangles, edges);
+        // also using in contains
+        outsideTrianglesIdEnd = triangles.size();
+        buildDGraph(triangles, edges);
     }
 
     void buildDGraph(vector<Triangle> triangles, vector<Edge> edges) {
@@ -509,11 +509,12 @@ public:
         };
 
         // T
-        auto ecmp = [&U](const Edge &el, const Edge &er) {
+        auto pcmp = [](const Point &p, const Point &q) { return p.y < q.y || (p.y == q.y && p.x > q.x); };
+        auto ecmp = [&](const Edge &el, const Edge &er) {
             auto a = U[el.fromId], b = U[el.toId];
-            if (a.y > b.y) swap(a, b);
+            if (pcmp(b, a)) swap(a, b);
             auto c = U[er.fromId], d = U[er.toId];
-            if (c.y > d.y) swap(c, d);
+            if (pcmp(d, c)) swap(c, d);
             assert(a != b || c != d);
             if (a == b) {
                 return is_right_turn(c, d, a);
@@ -528,7 +529,6 @@ public:
         set<Edge, decltype(ecmp)> T(ecmp);
 
         // Q
-        auto pcmp = [](const Point &p, const Point &q) { return p.y < q.y || (p.y == q.y && p.x > q.x); };
         priority_queue<Point, vector<Point>, decltype(pcmp)> Q(pcmp, P);
 
         // vertex_type
@@ -747,7 +747,7 @@ public:
                     if (sign((cur - pnt) % (curStack.back() - pnt)) != expectedSign) {
                         break;
                     }
-                    cerr << cur.id << " " << curStack.back().id << " " << pnt.id << " " << expectedSign << endl;
+//                    cerr << cur.id << " " << curStack.back().id << " " << pnt.id << " " << expectedSign << endl;
                     add_triangle(triangles, edges, cur, curStack.back(), pnt);
                     cur = curStack.back();
                     curStack.pop_back();
@@ -925,29 +925,33 @@ public:
 };
 
 int main() {
-    freopen("input.txt", "r", stdin);
+    freopen("input_pub.txt", "r", stdin);
     freopen("output.txt", "w", stdout);
 
-    Polygon p;
+    int m;
+    cin >> m;
 
-    int n, a, b;
+    for (int j = 0; j < m; ++j) {
+        cerr << j << endl;
 
-    cin >> n;
-    for (int i = 0; i < n; ++i) {
-        cin >> a >> b;
-        p.emplace_back(a, b, i);
+        Polygon p;
+        int n, a, b, c;
+
+        cin >> n;
+        for (int i = 0; i < n; ++i) {
+            cin >> a >> b;
+            p.emplace_back(a, b, i);
+        }
+
+        auto algo = Kirkpatrick(p);
+
+        cin >> c;
+        for (int i = 0; i < c; ++i) {
+            cin >> a >> b;
+//            cout << (algo.contains({a, b}) ? "INSIDE" : "OUTSIDE") << endl;
+        }
+
     }
-
-    auto algo = Kirkpatrick(p);
-
-//    auto res = algo.split_y(p);
-//    for (int i = 0; i < int(res.size()); i++) {
-//        cout << i + 1 << "th polygon:" << endl;
-//        print_polygon(res[i]);
-//        if (i != int(res.size()) - 1) {
-//            cout << "------------" << endl;
-//        }
-//    }
 
     return 0;
 }
