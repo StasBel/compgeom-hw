@@ -523,7 +523,7 @@ public:
             } else {
                 auto f = is_right_turn(c, d, a) && is_right_turn(c, d, b);
                 auto s = is_left_turn(a, b, c) && is_left_turn(a, b, d);
-                return s || f;
+                return f || s;
             }
         };
         set<Edge, decltype(ecmp)> T(ecmp);
@@ -596,7 +596,7 @@ public:
                     helper[ej] = vi;
                 }
             } else { // regular
-                bool cond = vi1.y < vi_1.y || (vi1.y == vi_1.y && vi1.x < vi_1.x);  // TODO: shitcases?
+                bool cond = pcmp(vi, vi_1) && pcmp(vi1, vi);
                 if (cond) {
                     if (helper.find(ei_1) != helper.end() && vertex_type(helper[ei_1]) == 3) {  // merge
                         D.emplace_back(vi.id, helper[ei_1].id);
@@ -957,7 +957,7 @@ public:
 };
 
 int main() {
-    freopen("input_pub.txt", "r", stdin);
+    freopen("016", "r", stdin);
     freopen("output.txt", "w", stdout);
 
     int m;
