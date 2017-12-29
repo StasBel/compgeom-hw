@@ -29,25 +29,26 @@ def read_l(name='output.txt'):
         return list(ls)
 
 
-def plot_p(p, show=True):
+def plot_p(p, show=True, color='b'):
     p = p[:]
     p.append(p[0])
     xs, ys = zip(*p)
-    plt.plot(xs, ys)
+    plt.plot(xs, ys, color=color)
     if show:
         plt.show()
 
 
-def plot_l(l, show=True):
+def plot_l(l, show=True, color='r'):
     l = l[:]
     for (a, b), (c, d) in l:
-        plt.plot([a, c], [b, d], color='r')
+        plt.plot([a, c], [b, d], color=color)
     if show:
         plt.show()
 
 
 if __name__ == '__main__':
     plot_p(read_p('input.txt'), show=False)
+    # plot_p(read_p('output.txt'), color='r')
     plot_l(read_l('output.txt'))
     # plot_p(read_p('output.txt'))
     # plot_p(read_p('input.txt'))
